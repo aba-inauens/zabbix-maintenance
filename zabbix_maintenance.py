@@ -10,9 +10,9 @@ import urllib2
 import yaml
 
 if platform.system() == "Windows":
-    configfile = "C:\ProgramData\zabbix\zabbix_maintenance.yml"
+    configfile = ".\zabbix_maintenance.yml"
 else:
-    configfile = "/etc/zabbix/zabbix_maintenance.yml"
+    configfile = "./zabbix_maintenance.yml"
 
 with open(configfile, 'r') as ymlfile:
     config = yaml.load(ymlfile, yaml.SafeLoader)
@@ -21,6 +21,7 @@ user = config['user']
 password = config['password']
 server = config['server']
 api = "https://" + server + "/api_jsonrpc.php"
+
 
 def get_token():
     data = {'jsonrpc': '2.0', 'method': 'user.login', 'params': {'user': user, 'password': password},
@@ -66,6 +67,7 @@ def get_host_id(check=False):
 
 
 def get_maintenance_id():
+    global maintenance
     hostid = get_host_id()
     token = get_token()
     data = {"jsonrpc": "2.0", "method": "maintenance.get", "params": {"output": "extend", "selectGroups": "extend",
@@ -83,6 +85,7 @@ def get_maintenance_id():
         if not body['result']:
             print("No maintenance for host: " + hostname)
         else:
+            maintenance = body
             return int(body['result'][0]['maintenanceid'])
 
 
@@ -105,8 +108,43 @@ def del_maintenance(mid):
 def start_maintenance():
     maintids = get_maintenance_id()
     maint = isinstance(maintids, int)
+    global maintenance
     if maint is True:
+        if until < int(maintenance['result'][0]['active_till']):
+            del_maintenance(maintids)
+            hostid = get_host_id()
+            token = get_token()
+            data = {"jsonrpc": "2.0", "method": "maintenance.create", "params":
+                {"name": "maintenance_" + hostname, "active_since": int(maintenance['result'][0]['active_since']), "active_till": int(maintenance['result'][0]['active_till']), "hostids": [hostid], "timeperiods":
+                [{"timeperiod_type": 0, "period": period},{"timeperiod_type": 0, "period": int(maintenance['result'][0]['timeperiods'][0]['period'])}]}, "auth": token, "id": 1}
+            req = urllib2.Request(api)
+            data_json = json.dumps(data)
+            req.add_header('content-type', 'application/json-rpc')
+            try:
+                response = urllib2.urlopen(req, data_json)
+            except urllib2.HTTPError as ue:
+                print("Error: " + str(ue))
+                sys.exit(1)
+            else:
+                print("Added a " + str(period / int('3600')) + " hours period on host: " + hostname)
+                sys.exit(0)
         del_maintenance(maintids)
+        hostid = get_host_id()
+        token = get_token()
+        data = {"jsonrpc": "2.0", "method": "maintenance.create", "params":
+            {"name": "maintenance_" + hostname, "active_since": int(maintenance['result'][0]['active_since']), "active_till": until, "hostids": [hostid], "timeperiods":
+            [{"timeperiod_type": 0, "period": period},{"timeperiod_type": 0, "period": int(maintenance['result'][0]['timeperiods'][0]['period'])}]}, "auth": token, "id": 1}
+        req = urllib2.Request(api)
+        data_json = json.dumps(data)
+        req.add_header('content-type', 'application/json-rpc')
+        try:
+            response = urllib2.urlopen(req, data_json)
+        except urllib2.HTTPError as ue:
+            print("Error: " + str(ue))
+            sys.exit(1)
+        else:
+            print("Added a " + str(period / int('3600')) + " hours period on host: " + hostname + " and extended active till date")
+            sys.exit(0)
     hostid = get_host_id()
     token = get_token()
     data = {"jsonrpc": "2.0", "method": "maintenance.create", "params":
