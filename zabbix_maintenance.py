@@ -10,9 +10,9 @@ import urllib2
 import yaml
 
 if platform.system() == "Windows":
-    configfile = ".\zabbix_maintenance.yml"
+    configfile = "C:\ProgramData\zabbix\zabbix_maintenance.ymll"
 else:
-    configfile = "./zabbix_maintenance.yml"
+    configfile = "/etc/zabbix/zabbix_maintenance.yml"
 
 with open(configfile, 'r') as ymlfile:
     config = yaml.load(ymlfile, yaml.SafeLoader)
