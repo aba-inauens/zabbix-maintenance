@@ -8,11 +8,20 @@ import sys
 import time
 import urllib2
 import yaml
+import os.path
 
 if platform.system() == "Windows":
-    configfile = "C:\ProgramData\zabbix\zabbix_maintenance.ymll"
+    win_path = 'C:\ProgramData\zabbix\zabbix_maintenance.yml'
+    if os.path.isfile(win_path) == True:
+        configfile = win_path
+    else:
+        configfile = '.\zabbix_maintenance.yml'
 else:
-    configfile = "/etc/zabbix/zabbix_maintenance.yml"
+    linux_path = '/etc/zabbix/zabbix_maintenance.yml'
+    if os.path.isfile(linux_path) == True:
+        configfile = linux_path
+    else:
+        configfile = './zabbix_maintenance.yml'
 
 with open(configfile, 'r') as ymlfile:
     config = yaml.load(ymlfile, yaml.SafeLoader)
@@ -21,7 +30,6 @@ user = config['user']
 password = config['password']
 server = config['server']
 api = "https://" + server + "/api_jsonrpc.php"
-
 
 def get_token():
     data = {'jsonrpc': '2.0', 'method': 'user.login', 'params': {'user': user, 'password': password},
