@@ -177,6 +177,7 @@ def stop_maintenance():
     if maint is True:
         if len(maintenance['result'][0]['timeperiods']) > 1:
             print('Mehrere Periods festgestellt!')
+            del_maintenance(maintids)
         else:
             del_maintenance(maintids)
 
