@@ -171,6 +171,16 @@ def start_maintenance():
         sys.exit(0)
 
 
+def stop_maintenance():
+    maintids = get_maintenance_id()
+    maint = isinstance(maintids, int)
+    if maint is True:
+        if len(maintenance['result'][0]['timeperiods']) > 1:
+            print('Mehrere Periods festgestellt!')
+        else:
+            del_maintenance(maintids)
+
+
 def check_host_id():
     if get_host_id(True):
         print("Host " + hostname + " found on " + server)
@@ -201,10 +211,7 @@ if len(sys.argv) > 1:
     if sys.argv[1] == "start":
         start_maintenance()
     elif sys.argv[1] == "stop":
-        maintids = get_maintenance_id()
-        maint = isinstance(maintids, int)
-        if maint is True:
-            del_maintenance(maintids)
+        stop_maintenance()
     elif sys.argv[1] == "check":
         check_host_id()
     else:
