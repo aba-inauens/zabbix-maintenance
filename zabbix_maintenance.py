@@ -118,41 +118,13 @@ def start_maintenance():
     maint = isinstance(maintids, int)
     global maintenance
     if maint is True:
-        if until < int(maintenance['result'][0]['active_till']):
-            del_maintenance(maintids)
-            hostid = get_host_id()
-            token = get_token()
-            data = {"jsonrpc": "2.0", "method": "maintenance.create", "params":
-                {"name": "maintenance_" + hostname, "active_since": int(maintenance['result'][0]['active_since']), "active_till": int(maintenance['result'][0]['active_till']), "hostids": [hostid], "timeperiods":
-                [{"timeperiod_type": 0, "period": period},{"timeperiod_type": 0, "period": int(maintenance['result'][0]['timeperiods'][0]['period'])}]}, "auth": token, "id": 1}
-            req = urllib2.Request(api)
-            data_json = json.dumps(data)
-            req.add_header('content-type', 'application/json-rpc')
-            try:
-                response = urllib2.urlopen(req, data_json)
-            except urllib2.HTTPError as ue:
-                print("Error: " + str(ue))
-                sys.exit(1)
-            else:
-                print("Added a " + str(period / int('3600')) + " hours period on host: " + hostname)
-                sys.exit(0)
         del_maintenance(maintids)
-        hostid = get_host_id()
-        token = get_token()
-        data = {"jsonrpc": "2.0", "method": "maintenance.create", "params":
-            {"name": "maintenance_" + hostname, "active_since": int(maintenance['result'][0]['active_since']), "active_till": until, "hostids": [hostid], "timeperiods":
-            [{"timeperiod_type": 0, "period": period},{"timeperiod_type": 0, "period": int(maintenance['result'][0]['timeperiods'][0]['period'])}]}, "auth": token, "id": 1}
-        req = urllib2.Request(api)
-        data_json = json.dumps(data)
-        req.add_header('content-type', 'application/json-rpc')
-        try:
-            response = urllib2.urlopen(req, data_json)
-        except urllib2.HTTPError as ue:
-            print("Error: " + str(ue))
-            sys.exit(1)
+        extend_mnt = {"timeperiod_type": 0, "period": period}
+        maintenance['result'][0]['timeperiods'].append(extend_mnt)
+        if until < int(maintenance['result'][0]['active_till']):
+            update_maintenance(maintenance['result'][0]['timeperiods'],int(maintenance['result'][0]['active_till']),"Added")
         else:
-            print("Added a " + str(period / int('3600')) + " hours period on host: " + hostname + " and extended active till date")
-            sys.exit(0)
+            update_maintenance(maintenance['result'][0]['timeperiods'],until,"Added")
     hostid = get_host_id()
     token = get_token()
     data = {"jsonrpc": "2.0", "method": "maintenance.create", "params":
@@ -171,13 +143,38 @@ def start_maintenance():
         sys.exit(0)
 
 
+def update_maintenance(mnt,act_t,task):
+    hostid = get_host_id()
+    token = get_token()
+    data = {"jsonrpc": "2.0", "method": "maintenance.create", "params":
+        {"name": "maintenance_" + hostname, "active_since": int(maintenance['result'][0]['active_since']), "active_till": act_t, "hostids": [hostid], "timeperiods": mnt}, "auth": token, "id": 1}
+    req = urllib2.Request(api)
+    data_json = json.dumps(data)
+    req.add_header('content-type', 'application/json-rpc')
+    try:
+        response = urllib2.urlopen(req, data_json)
+    except urllib2.HTTPError as ue:
+        print("Error: " + str(ue))
+        sys.exit(1)
+    else:
+        print(task + " period on host: " + hostname)
+        sys.exit(0)
+
+
 def stop_maintenance():
     maintids = get_maintenance_id()
     maint = isinstance(maintids, int)
     if maint is True:
         if len(maintenance['result'][0]['timeperiods']) > 1:
-            print('Mehrere Periods festgestellt!')
+            min_period = 86400
+            period_position = 0
+            for item in range(len(maintenance['result'][0]['timeperiods'])):
+                if min_period > int(maintenance['result'][0]['timeperiods'][item]['period']):
+                    min_period = int(maintenance['result'][0]['timeperiods'][item]['period'])
+                    period_position = item
+            del maintenance['result'][0]['timeperiods'][period_position]
             del_maintenance(maintids)
+            update_maintenance(maintenance['result'][0]['timeperiods'],int(maintenance['result'][0]['active_till']),"Removed")
         else:
             del_maintenance(maintids)
 
