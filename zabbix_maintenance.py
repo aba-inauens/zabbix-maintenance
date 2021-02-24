@@ -116,7 +116,6 @@ def del_maintenance(mid):
 def start_maintenance():
     maintids = get_maintenance_id()
     maint = isinstance(maintids, int)
-    global maintenance
     if maint is True:
         del_maintenance(maintids)
         extend_mnt = {"timeperiod_type": 0, "period": period}
