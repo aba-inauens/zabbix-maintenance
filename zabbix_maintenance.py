@@ -11,17 +11,13 @@ import yaml
 import os.path
 
 if platform.system() == "Windows":
-    win_path = 'C:\ProgramData\zabbix\zabbix_maintenance.yml'
-    if os.path.isfile(win_path) == True:
-        configfile = win_path
-    else:
-        configfile = '.\zabbix_maintenance.yml'
+    path = 'C:\ProgramData\zabbix\zabbix_maintenance.yml'
 else:
-    linux_path = '/etc/zabbix/zabbix_maintenance.yml'
-    if os.path.isfile(linux_path) == True:
-        configfile = linux_path
-    else:
-        configfile = './zabbix_maintenance.yml'
+    path = '/etc/zabbix/zabbix_maintenance.yml'
+if os.path.isfile(path) == True:
+    configfile = path
+else:
+    configfile = 'zabbix_maintenance.yml'
 
 with open(configfile, 'r') as ymlfile:
     config = yaml.load(ymlfile, yaml.SafeLoader)
@@ -93,7 +89,7 @@ def get_maintenance_id():
         if not body['result']:
             print("No maintenance for host: " + hostname)
         else:
-            maintenance = body
+            maintenance = body['result'][0]
             return int(body['result'][0]['maintenanceid'])
 
 
@@ -119,11 +115,11 @@ def start_maintenance():
     if maint is True:
         del_maintenance(maintids)
         extend_mnt = {"timeperiod_type": 0, "period": period}
-        maintenance['result'][0]['timeperiods'].append(extend_mnt)
-        if until < int(maintenance['result'][0]['active_till']):
-            update_maintenance(maintenance['result'][0]['timeperiods'],int(maintenance['result'][0]['active_till']),"Added")
+        maintenance['timeperiods'].append(extend_mnt)
+        if until < int(maintenance['active_till']):
+            update_maintenance(maintenance['timeperiods'],int(maintenance['active_till']),"Added")
         else:
-            update_maintenance(maintenance['result'][0]['timeperiods'],until,"Added")
+            update_maintenance(maintenance['timeperiods'],until,"Added")
     hostid = get_host_id()
     token = get_token()
     data = {"jsonrpc": "2.0", "method": "maintenance.create", "params":
@@ -146,7 +142,7 @@ def update_maintenance(mnt,act_t,task):
     hostid = get_host_id()
     token = get_token()
     data = {"jsonrpc": "2.0", "method": "maintenance.create", "params":
-        {"name": "maintenance_" + hostname, "active_since": int(maintenance['result'][0]['active_since']), "active_till": act_t, "hostids": [hostid], "timeperiods": mnt}, "auth": token, "id": 1}
+        {"name": "maintenance_" + hostname, "active_since": int(maintenance['active_since']), "active_till": act_t, "hostids": [hostid], "timeperiods": mnt}, "auth": token, "id": 1}
     req = urllib2.Request(api)
     data_json = json.dumps(data)
     req.add_header('content-type', 'application/json-rpc')
@@ -164,16 +160,16 @@ def stop_maintenance():
     maintids = get_maintenance_id()
     maint = isinstance(maintids, int)
     if maint is True:
-        if len(maintenance['result'][0]['timeperiods']) > 1:
+        if len(maintenance['timeperiods']) > 1:
             min_period = 86400
             period_position = 0
-            for item in range(len(maintenance['result'][0]['timeperiods'])):
-                if min_period > int(maintenance['result'][0]['timeperiods'][item]['period']):
-                    min_period = int(maintenance['result'][0]['timeperiods'][item]['period'])
+            for item in range(len(maintenance['timeperiods'])):
+                if min_period > int(maintenance['timeperiods'][item]['period']):
+                    min_period = int(maintenance['timeperiods'][item]['period'])
                     period_position = item
-            del maintenance['result'][0]['timeperiods'][period_position]
+            del maintenance['timeperiods'][period_position]
             del_maintenance(maintids)
-            update_maintenance(maintenance['result'][0]['timeperiods'],int(maintenance['result'][0]['active_till']),"Removed")
+            update_maintenance(maintenance['timeperiods'],int(maintenance['active_till']),"Removed")
         else:
             del_maintenance(maintids)
 
